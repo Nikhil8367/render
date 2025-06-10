@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Teacher Quiz Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      overflow-x: hidden;
+      background: black;
+      color: white;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      height: auto;
+      padding: 1.5rem;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('https://source.unsplash.com/1600x900/?galaxy,space,nebula') no-repeat center center/cover;
+      filter: blur(2px);
+      opacity: 0.5;
+      z-index: -3;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      /* Remove width and height CSS to prevent stretching */
+      /* width: 100vw; */
+      /* height: 100vh; */
+      z-index: -2;
+      display: block;
+    }
+
+    .max-w-5xl {
+      background-color: rgba(255, 255, 255, 0.85);
+      color: #1a202c;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    }
+    #starCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;     /* full viewport width */
+  height: 100vh;    /* full viewport height */
+  z-index: -1;      /* behind content */
+  pointer-events: none; /* clicks pass through canvas */
+  display: block;   /* removes inline gap */
+}
+
+  </style>
+</head>
+<body class="font-sans">
+  <canvas id="starCanvas"></canvas>
+  <div class="max-w-5xl mx-auto shadow rounded p-8 bg-white mt-10">
+    <h1 class="text-3xl font-bold text-blue-700 mb-6">
+      Quiz Generator (Teachers Only)
+    </h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div>
+        <label for="topic" class="block font-semibold mb-1">Topic</label>
+        <input
+          id="topic"
+          type="text"
+          class="w-full border px-3 py-2 rounded"
+          placeholder="e.g., Python loops"
+          autocomplete="off"
+        />
+      </div>
+      <div>
+        <label for="difficulty" class="block font-semibold mb-1">Difficulty</label>
+        <select
+          id="difficulty"
+          class="w-full border px-3 py-2 rounded"
+        >
+          <option value="">Select</option>
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+      </div>
+      <div>
+        <label for="numQuestions" class="block font-semibold mb-1">Number of Questions</label>
+        <input
+          id="numQuestions"
+          type="number"
+          class="w-full border px-3 py-2 rounded"
+          placeholder="e.g., 5"
+          min="1"
+          max="20"
+        />
+      </div>
+      <div>
+        <label for="rollNumber" class="block font-semibold mb-1">
+          Assign Quiz to (9 digits for branch, or up to 12 digits for student)
+        </label>
+        <input
+          id="rollNumber"
+          type="text"
+          class="w-full border px-3 py-2 rounded"
+          placeholder="Enter 9 to 12 digits e.g. 323103312 or 323103312345"
+          autocomplete="off"
+          maxlength="12"
+        />
+        <p id="roll-error" class="text-red-600 text-sm mt-1 hidden">
+          Roll number must be 9 to 12 digits and follow format: 3 + YY + 1033 + BB + optional SSS.
+        </p>
+      </div>
+      
+    </div>
+
+    <button
+      onclick="generateQuiz()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-semibold"
+    >
+      Generate Quiz
+    </button>
+    
+
+    <div id="message" class="mt-4 text-sm font-semibold text-red-600"></div>
+    <button id="viewQuizzesBtn" class="bg-blue-500 text-white px-4 py-2 rounded mt-4">
+        View My Quizzes
+    </button>
+      
+    <div id="quizList" class="mt-4 space-y-3">
+        <!-- Fetched quizzes will be displayed here -->
+    </div>
+      
+    <div
+      id="quiz-editor"
+      class="mt-8 rounded p-6 border border-gray-300"
+      style="display:none;"
+    >
+      <label class="block font-semibold mb-1">
+        Question <span id="current-question-number"></span> of <span id="total-questions"></span>:
+      </label>
+      <textarea
+        id="edit-question"
+        rows="4"
+        class="w-full border p-2 mb-4 rounded"
+        placeholder="Edit question text here..."
+      ></textarea>
+
+      <label class="block font-semibold mb-1">Options:</label>
+      <div id="options-container" class="grid grid-cols-2 gap-3 mb-4">
+        <!-- Option inputs added dynamically by JS -->
+      </div>
+
+      <label for="edit-answer" class="block font-semibold mb-1">Answer:</label>
+      <input
+        id="edit-answer"
+        type="text"
+        class="border p-2 w-full mb-6 rounded"
+        placeholder="Correct answer"
+        autocomplete="off"
+      />
+
+      <label for="question-image-upload" class="block font-semibold mb-2">Upload Image (optional):</label>
+      <input
+        id="question-image-upload"
+        type="file"
+        accept="image/*"
+        class="mb-4"
+      />
+
+      <div id="image-previews" class="mb-6 flex gap-4 overflow-x-auto"></div>
+
+      <div class="flex justify-between items-center">
+        <button
+          id="prev-btn"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded disabled:opacity-50"
+          disabled
+        >
+          Previous
+        </button>
+        <button
+          id="next-btn"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded"
+          disabled
+        >
+          Next
+        </button>
+        <button
+          id="add-btn"
+          class="ml-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+        >
+          Add Question
+        </button>
+        <button
+          id="save-btn"
+          class="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Save All
+        </button>
+      </div>
+    </div>
+
+    <button
+      onclick="uploadQuiz()"
+      id="upload-btn"
+      class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-semibold mt-6"
+      style="display:none;"
+    >
+      Upload Quiz to Database
+    </button>
+  </div>
+
+  <script>
+   const API_BASE_URL = 'http://localhost:5000';
+
+   function setupViewQuizzes() {
+  const API_BASE_URL = 'http://localhost:5000';
+  const viewBtn = document.getElementById('viewQuizzesBtn');
+  const quizList = document.getElementById('quizList');
+
+  // Editor DOM elements
+  const quizEditor = document.getElementById('quiz-editor');
+  const editQuestion = document.getElementById('edit-question');
+  const optionsContainer = document.getElementById('options-container');
+  const editAnswer = document.getElementById('edit-answer');
+  const imageUpload = document.getElementById('question-image-upload');
+  const imagePreview = document.getElementById('image-previews');
+  const currentQuestionSpan = document.getElementById('current-question-number');
+  const totalQuestionsSpan = document.getElementById('total-questions');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const addBtn = document.getElementById('add-btn');
+  const saveBtn = document.getElementById('save-btn');
+  const uploadBtn = document.getElementById('upload-btn');
+
+  let questions = [];
+  let currentQuestionIndex = 0;
+  let editingQuizId = null;
+
+  function renderQuestion() {
+  const q = questions[currentQuestionIndex];
+
+  // Use questionText instead of question
+  editQuestion.value = q.questionText || '';
+  editAnswer.value = q.answer || '';
+  currentQuestionSpan.textContent = currentQuestionIndex + 1;
+  totalQuestionsSpan.textContent = questions.length;
+
+  // Populate options
+  optionsContainer.innerHTML = '';
+  (q.options || []).forEach(opt => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'border p-2 rounded';
+    input.value = opt;
+    optionsContainer.appendChild(input);
+  });
+
+  prevBtn.disabled = currentQuestionIndex === 0;
+  nextBtn.disabled = currentQuestionIndex === questions.length - 1;
+
+  quizEditor.style.display = 'block';
+  uploadBtn.style.display = 'block';
+}
+
+
+  function saveCurrentQuestion() {
+    const updatedQuestion = editQuestion.value;
+    const updatedAnswer = editAnswer.value;
+    const updatedOptions = Array.from(optionsContainer.querySelectorAll('input')).map(input => input.value);
+
+    questions[currentQuestionIndex] = {
+      ...questions[currentQuestionIndex],
+      question: updatedQuestion,
+      answer: updatedAnswer,
+      options: updatedOptions
+    };
+  }
+
+  viewBtn.addEventListener('click', async () => {
+    const teacherId = localStorage.getItem('teacherId');
+    if (!teacherId) return alert('Please log in as a teacher.');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/my-quizzes/${teacherId}`);
+      if (!response.ok) throw new Error('Failed to fetch quizzes');
+      const quizzes = await response.json();
+
+      quizList.innerHTML = '';
+      if (!quizzes.length) {
+        quizList.innerHTML = '<p class="text-gray-600">No quizzes found.</p>';
+        return;
+      }
+
+      quizzes.forEach((quiz, index) => {
+        const quizDiv = document.createElement('div');
+        quizDiv.className = 'border p-4 rounded bg-white shadow';
+
+        const questionsHtml = quiz.questions.map((q, i) => `
+          <li><b>Q${i + 1}:</b> ${q.question}</li>
+        `).join('');
+
+        quizDiv.innerHTML = `
+          <h3 class="font-bold text-lg cursor-pointer">${index + 1}. ${quiz.topic} - (${quiz.difficulty})</h3>
+          <div class="questions mt-2 hidden">
+            <ul class="list-disc ml-5">${questionsHtml}</ul>
+            <div class="mt-3 flex gap-4">
+              <button class="edit-btn bg-yellow-400 px-3 py-1 rounded">Edit</button>
+              <button class="delete-btn bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+            </div>
+          </div>
+        `;
+
+        quizDiv.querySelector('h3').addEventListener('click', () => {
+          quizDiv.querySelector('.questions').classList.toggle('hidden');
+        });
+
+        quizDiv.querySelector('.delete-btn').addEventListener('click', async () => {
+          if (!confirm('Are you sure you want to delete this quiz?')) return;
+          const res = await fetch(`${API_BASE_URL}/api/quiz/${quiz._id}`, { method: 'DELETE' });
+          if (res.ok) {
+            alert('Quiz deleted successfully.');
+            viewBtn.click();
+          } else {
+            alert('Error deleting quiz.');
+          }
+        });
+
+        quizDiv.querySelector('.edit-btn').addEventListener('click', () => {
+  console.log('Editing Quiz:', quiz); // Debug here
+  questions = JSON.parse(JSON.stringify(quiz.questions)); // Deep copy
+  currentQuestionIndex = 0;
+  console.log('Quiz ID:', quiz._id); // <--- check this
+  editingQuizId = quiz._id;
+  renderQuestion();
+});
+
+
+        quizList.appendChild(quizDiv);
+      });
+    } catch (err) {
+      quizList.innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
+    }
+  });
+
+  // Navigation buttons
+  nextBtn.addEventListener('click', () => {
+    saveCurrentQuestion();
+    if (currentQuestionIndex < questions.length - 1) {
+      currentQuestionIndex++;
+      renderQuestion();
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    saveCurrentQuestion();
+    if (currentQuestionIndex > 0) {
+      currentQuestionIndex--;
+      renderQuestion();
+    }
+  });
+
+  // Add new question
+  addBtn.addEventListener('click', () => {
+    saveCurrentQuestion();
+    questions.push({
+      question: '',
+      options: ['', '', '', ''],
+      answer: '',
+      image: ''
+    });
+    currentQuestionIndex = questions.length - 1;
+    renderQuestion();
+  });
+
+  // Save all edits to local memory
+  saveBtn.addEventListener('click', () => {
+    saveCurrentQuestion();
+    alert('All changes saved locally. Click "Upload Quiz to Database" to store.');
+  });
+
+  uploadBtn.addEventListener('click', async () => {
+  saveCurrentQuestion();
+
+  // Basic sanity checks
+  if (!questions || questions.length === 0) {
+    alert('No questions to upload.');
+    return;
+  }
+
+  const teacherId = localStorage.getItem('teacherId');
+  if (!teacherId) {
+    alert('You must be logged in as a teacher.');
+    return;
+  }
+
+  // Grab inputs
+  const topicInput = document.getElementById('topic');
+  const difficultyInput = document.getElementById('difficulty');
+  const rollNumberInput = document.getElementById('rollNumber');
+  const rollError = document.getElementById('roll-error');
+
+  if (!topicInput || !difficultyInput || !rollNumberInput) {
+    alert('Required form inputs are missing.');
+    return;
+  }
+
+  const topic = topicInput.value.trim();
+  const difficulty = difficultyInput.value;
+  const assignedTo = rollNumberInput.value.trim();
+
+  // Validate topic and difficulty
+  if (!topic) {
+    alert('Please enter a topic.');
+    return;
+  }
+  if (!difficulty) {
+    alert('Please select difficulty.');
+    return;
+  }
+
+  // Validate roll number pattern (example pattern you had)
+  const rollRegex = /^3\d{2}1033\d{2,5}$/;
+  if (assignedTo.length < 9 || assignedTo.length > 12 || !rollRegex.test(assignedTo)) {
+    if (rollError) rollError.classList.remove('hidden');
+    alert('Invalid roll number format.');
+    return;
+  } else if (rollError) {
+    rollError.classList.add('hidden');
+  }
+
+  // Prepare quiz data matching backend expected format
+  const newQuizData = {
+    createdBy: teacherId,
+    topic,
+    difficulty,
+    assignedTo,
+    questions
+  };
+
+  try {
+    // Step 1: Delete existing quiz if editingQuizId exists
+    if (editingQuizId) {
+      const deleteRes = await fetch(`${API_BASE_URL}/api/quiz/${editingQuizId}`, {
+        method: 'DELETE',
+      });
+      if (!deleteRes.ok) throw new Error('Failed to delete existing quiz.');
+    }
+
+    // Step 2: Upload new quiz
+    const postRes = await fetch(`${API_BASE_URL}/api/quizzes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newQuizData),
+    });
+
+    if (!postRes.ok) {
+      const errData = await postRes.json();
+      throw new Error(errData.error || 'Failed to upload quiz.');
+    }
+
+    alert('Quiz updated and reuploaded successfully!');
+    quizEditor.style.display = 'none';
+    uploadBtn.style.display = 'none';
+
+    // Optionally refresh quizzes list or UI
+    viewBtn.click();
+
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+});
+
+}
+
+setupViewQuizzes();
+
+
+function validateRollNumber(roll) {
+  // 9 digits: 3YY1033BB
+  // 10-12 digits: 3YY1033BB + 1 to 3 digits student number
+  const regexBranch = /^3\d{2}1033\d{2}$/;
+  const regexStudent = /^3\d{2}1033\d{2}\d{1,3}$/;
+  return (roll.length === 9 && regexBranch.test(roll)) ||
+         (roll.length >= 10 && roll.length <= 12 && regexStudent.test(roll));
+}
+
+function getBranchFromRoll(roll) {
+  // branch is digits 8-9 (0-based index)
+  return roll.substring(7, 9);
+}
+
+let assignedRoll = "";
+
+document.getElementById("rollNumber").addEventListener("input", function () {
+  const inputVal = this.value.trim();
+  const errorMsg = document.getElementById("roll-error");
+
+  if (inputVal.length >= 9 && inputVal.length <= 12) {
+    if (validateRollNumber(inputVal)) {
+      assignedRoll = inputVal;
+      errorMsg.classList.add("hidden");
+      console.log("Assigned roll/branch for quiz:", assignedRoll);
+    } else {
+      errorMsg.textContent = "Roll number must be 9 to 12 digits and follow the format: 3 + YY + 1033 + BB + optional SSS.";
+      errorMsg.classList.remove("hidden");
+      assignedRoll = "";
+    }
+  } else {
+    errorMsg.classList.add("hidden");
+    assignedRoll = "";
+  }
+});
+
+function canStudentSeeQuiz(studentRoll) {
+  if (!validateRollNumber(studentRoll)) {
+    return { valid: false, message: "Invalid student roll number format." };
+  }
+  if (!assignedRoll) {
+    return { valid: false, message: "No quiz assigned yet." };
+  }
+
+  // Assigned roll 9 digits = branch quiz
+  if (assignedRoll.length === 9) {
+    if (studentRoll.length < 9) {
+      return { valid: false, message: "Student roll number must be at least 9 digits." };
+    }
+    const assignedBranch = getBranchFromRoll(assignedRoll);
+    const studentBranch = getBranchFromRoll(studentRoll);
+    if (assignedBranch === studentBranch) {
+      return { valid: true, message: "Quiz visible to this student's branch." };
+    } else {
+      return { valid: false, message: "Quiz not visible (branch mismatch)." };
+    }
+  }
+
+  // Assigned roll > 9 digits = specific student
+  if (assignedRoll.length > 9) {
+    if (assignedRoll === studentRoll) {
+      return { valid: true, message: "Quiz visible to this specific student." };
+    } else {
+      return { valid: false, message: "Quiz not visible (student mismatch)." };
+    }
+  }
+
+  return { valid: false, message: "Unexpected assignment format." };
+}
+
+
+
+    // Starfield animation code
+    document.addEventListener("DOMContentLoaded", () => {
+      const canvas = document.getElementById("starCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let stars = [];
+      let moveX = 0, moveY = 0;
+      let useGyro = false;
+      let isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        createStars(); // recreate stars on resize for proper positioning
+      }
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      function createStars() {
+        stars = [];
+        for (let i = 0; i < 300; i++) {
+          stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: Math.random() * 1.5 + 0.5,
+            speedX: Math.random() * 0.05 + 0.02,
+            speedY: Math.random() * 0.05 + 0.02,
+          });
+        }
+      }
+
+      function enableGyro() {
+        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+          DeviceOrientationEvent.requestPermission()
+            .then(permissionState => {
+              if (permissionState === "granted") {
+                useGyro = true;
+                window.addEventListener("deviceorientation", handleGyro);
+              }
+            })
+            .catch(error => {
+              console.error("Gyro Permission Error:", error);
+              // fallback to mouse movement if gyro denied
+              window.addEventListener("mousemove", handleMouseMove);
+            });
+        } else {
+          // If not iOS or permission not needed
+          useGyro = true;
+          window.addEventListener("deviceorientation", handleGyro);
+        }
+      }
+
+      function handleGyro(event) {
+        if (!useGyro) return;
+
+        if (event.gamma !== null && event.beta !== null) {
+          let smoothFactor = 0.05;
+          // adjust these multipliers to control star movement speed on gyro
+          moveX += (event.gamma * 0.2 - moveX) * smoothFactor;
+          moveY += (event.beta * 0.1 - moveY) * smoothFactor;
+        }
+      }
+
+      function handleMouseMove(event) {
+        if (!useGyro) {
+          // speedMultiplier controls star movement speed on desktop
+          let speedMultiplier = isMobile ? 1 : 3;
+          moveX = (event.clientX / window.innerWidth - 0.5) * 3 * speedMultiplier;
+          moveY = (event.clientY / window.innerHeight - 0.5) * 3 * speedMultiplier;
+        }
+      }
+
+      function animateStars() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        stars.forEach(star => {
+          // Control speed boost for desktop/mobile to look natural
+          let speedBoost = isMobile ? 1 : 1.5;
+
+          star.x += moveX * star.speedX * speedBoost;
+          star.y += moveY * star.speedY * speedBoost;
+
+          // Wrap stars around screen edges
+          if (star.x < 0) star.x = canvas.width;
+          if (star.x > canvas.width) star.x = 0;
+          if (star.y < 0) star.y = canvas.height;
+          if (star.y > canvas.height) star.y = 0;
+
+          ctx.beginPath();
+          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = "white";
+          ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+
+        requestAnimationFrame(animateStars);
+      }
+
+      // Initialize stars array now
+      createStars();
+
+      // Start animation loop
+      animateStars();
+
+      if (isMobile) {
+        enableGyro();
+      } else {
+        window.addEventListener("mousemove", handleMouseMove);
+      }
+    });
+// JavaScript for Quiz Generator
+let questions = [];
+let currentQuestionIndex = 0;
+
+const topicInput = document.getElementById('topic');
+const difficultyInput = document.getElementById('difficulty');
+const numQuestionsInput = document.getElementById('numQuestions');
+const messageDiv = document.getElementById('message');
+
+const quizEditor = document.getElementById('quiz-editor');
+const currentQuestionNumberSpan = document.getElementById('current-question-number');
+const totalQuestionsSpan = document.getElementById('total-questions');
+const editQuestionTextarea = document.getElementById('edit-question');
+const optionsContainer = document.getElementById('options-container');
+const editAnswerInput = document.getElementById('edit-answer');
+const questionImageUpload = document.getElementById('question-image-upload');
+const imagePreviews = document.getElementById('image-previews');
+
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const addBtn = document.getElementById('add-btn');
+const saveBtn = document.getElementById('save-btn');
+const uploadBtn = document.getElementById('upload-btn');
+
+async function generateQuiz() {
+  messageDiv.textContent = '';
+  const topic = topicInput.value.trim();
+  const difficulty = difficultyInput.value;
+  const numQuestions = parseInt(numQuestionsInput.value);
+
+  if (!topic) {
+    messageDiv.textContent = 'Please enter a topic.';
+    return;
+  }
+  if (!difficulty) {
+    messageDiv.textContent = 'Please select a difficulty.';
+    return;
+  }
+  if (!numQuestions || numQuestions < 1 || numQuestions > 20) {
+    messageDiv.textContent = 'Please enter a valid number of questions (1-20).';
+    return;
+  }
+
+  messageDiv.textContent = 'Generating quiz...';
+  messageDiv.className = 'text-blue-600';
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, difficulty, numQuestions })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !Array.isArray(data.questions)) {
+      throw new Error(data.error || 'Failed to load questions.');
+    }
+
+    questions = data.questions.map(q => {
+  const fullAnswer = q.options.find(opt => opt.toLowerCase().startsWith(q.answer.toLowerCase()));
+  return {
+    questionText: q.question,
+    options: q.options,
+    answer: fullAnswer || '', // fallback to empty string if not matched
+    imageData: null
+  };
+});
+
+
+    currentQuestionIndex = 0;
+    quizEditor.style.display = 'block';
+    uploadBtn.style.display = 'none';
+    totalQuestionsSpan.textContent = questions.length;
+    showQuestion(currentQuestionIndex);
+    messageDiv.textContent = 'Quiz generated successfully!';
+    messageDiv.className = 'text-green-600';
+  } catch (err) {
+    console.error('Error generating quiz:', err);
+    messageDiv.textContent = 'Error: ' + err.message;
+    messageDiv.className = 'text-red-600';
+  }
+}
+
+function showQuestion(index) {
+  if (index < 0 || index >= questions.length) return;
+  currentQuestionIndex = index;
+
+  const q = questions[index];
+  currentQuestionNumberSpan.textContent = index + 1;
+  editQuestionTextarea.value = q.questionText;
+  editAnswerInput.value = q.answer || '';
+
+  optionsContainer.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.classList.add('flex', 'items-center', 'gap-2');
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = opt;
+    input.classList.add('border', 'p-1', 'rounded', 'w-full');
+    input.dataset.optionIndex = i;
+
+    input.addEventListener('input', (e) => {
+      questions[currentQuestionIndex].options[i] = e.target.value;
+    });
+
+    div.appendChild(input);
+    optionsContainer.appendChild(div);
+  });
+
+  updateImagePreviews();
+
+  prevBtn.disabled = currentQuestionIndex === 0;
+  nextBtn.disabled = currentQuestionIndex === questions.length - 1;
+}
+
+function saveCurrentQuestion() {
+  if (!questions.length) return false;
+
+  const q = questions[currentQuestionIndex];
+  q.questionText = editQuestionTextarea.value.trim();
+  const answerInput = editAnswerInput.value.trim();
+
+  const matchedOption = q.options.find(opt => opt.trim().toLowerCase() === answerInput.toLowerCase());
+  if (!matchedOption) {
+    messageDiv.textContent = 'Answer must exactly match one of the option texts.';
+    messageDiv.className = 'text-red-600';
+    return false;
+  }
+
+  q.answer = matchedOption;
+
+  return true;
+}
+
+function addQuestion() {
+  if (!saveCurrentQuestion()) return;
+
+  questions.push({
+    questionText: '',
+    options: ['', '', '', ''],
+    answer: '',
+    imageData: null
+  });
+
+  totalQuestionsSpan.textContent = questions.length;
+  showQuestion(questions.length - 1);
+  uploadBtn.style.display = 'none';
+  messageDiv.textContent = '';
+}
+
+function updateImagePreviews() {
+  imagePreviews.innerHTML = '';
+  const imgData = questions[currentQuestionIndex]?.imageData;
+  if (imgData) {
+    const img = document.createElement('img');
+    img.src = imgData;
+    img.alt = 'Question Image';
+    img.classList.add('max-h-32', 'rounded', 'border');
+    imagePreviews.appendChild(img);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove Image';
+    removeBtn.classList.add('ml-2', 'text-red-600', 'underline');
+    removeBtn.onclick = () => {
+      questions[currentQuestionIndex].imageData = null;
+      updateImagePreviews();
+    };
+    imagePreviews.appendChild(removeBtn);
+  }
+}
+
+prevBtn.addEventListener('click', () => {
+  if (saveCurrentQuestion() && currentQuestionIndex > 0) {
+    showQuestion(currentQuestionIndex - 1);
+  }
+});
+
+nextBtn.addEventListener('click', () => {
+  if (saveCurrentQuestion() && currentQuestionIndex < questions.length - 1) {
+    showQuestion(currentQuestionIndex + 1);
+  }
+});
+
+addBtn.addEventListener('click', addQuestion);
+
+saveBtn.addEventListener('click', () => {
+  if (!saveCurrentQuestion()) return;
+
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    if (!q.questionText || q.options.some(opt => !opt.trim()) || !q.answer) {
+      messageDiv.textContent = `Please fill all fields in question ${i + 1}.`;
+      showQuestion(i);
+      return;
+    }
+    const match = q.options.find(opt => opt.trim().toLowerCase() === q.answer.trim().toLowerCase());
+    if (!match) {
+      messageDiv.textContent = `Answer must match one of the options in question ${i + 1}.`;
+      showQuestion(i);
+      return;
+    } else {
+      q.answer = match;
+    }
+  }
+
+  messageDiv.textContent = 'All questions saved locally. You can now upload to database.';
+  messageDiv.className = 'text-green-600';
+  uploadBtn.style.display = 'inline-block';
+});
+
+questionImageUpload.addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    questions[currentQuestionIndex].imageData = e.target.result;
+    updateImagePreviews();
+  };
+  reader.readAsDataURL(file);
+
+  questionImageUpload.value = '';
+});
+
+async function uploadQuiz() {
+  // Assuming messageDiv and uploadBtn and quizEditor are defined globally or above this function
+  if (!questions || !questions.length) {
+    messageDiv.textContent = 'No quiz to upload.';
+    messageDiv.className = 'text-red-600';
+    return;
+  }
+
+  const teacherId = localStorage.getItem('teacherId');
+  if (!teacherId) {
+    messageDiv.textContent = 'Not logged in as a teacher.';
+    messageDiv.className = 'text-red-600';
+    return;
+  }
+
+  const topicInput = document.getElementById('topic');
+  const difficultyInput = document.getElementById('difficulty');
+  const numQuestionsInput = document.getElementById('numQuestions');
+  const rollNumberInput = document.getElementById('rollNumber');
+  const rollError = document.getElementById('roll-error');
+
+  if (!topicInput || !difficultyInput || !numQuestionsInput || !rollNumberInput) {
+    messageDiv.textContent = 'Form inputs missing.';
+    messageDiv.className = 'text-red-600';
+    return;
+  }
+
+  const topic = topicInput.value.trim();
+  const difficulty = difficultyInput.value;
+  const numQuestions = parseInt(numQuestionsInput.value) || questions.length;
+  const assignedTo = rollNumberInput.value.trim();
+
+  // Basic validations
+  if (!topic) {
+    messageDiv.textContent = 'Please enter a topic.';
+    messageDiv.className = 'text-red-600';
+    return;
+  }
+
+  if (!difficulty) {
+    messageDiv.textContent = 'Please select difficulty.';
+    messageDiv.className = 'text-red-600';
+    return;
+  }
+
+  if (numQuestions < 1 || numQuestions > 20) {
+    messageDiv.textContent = 'Number of questions must be between 1 and 20.';
+    messageDiv.className = 'text-red-600';
+    return;
+  }
+
+  // Validate roll number pattern: 9 to 12 digits only, matches your format loosely
+  const rollRegex = /^3\d{2}1033\d{2,5}$/; // starts with 3 + 2 digits + 1033 + 2 to 5 digits (branch + optional student)
+  if (assignedTo.length < 9 || assignedTo.length > 12 || !rollRegex.test(assignedTo)) {
+    rollError.classList.remove('hidden');
+    messageDiv.textContent = 'Invalid roll number format.';
+    messageDiv.className = 'text-red-600';
+    return;
+  } else {
+    rollError.classList.add('hidden');
+  }
+
+  // Prepare quiz data
+  const quizData = {
+    createdBy: teacherId,
+    topic,
+    difficulty,
+    numQuestions,
+    questions,
+    assignedTo,
+  };
+
+  messageDiv.textContent = 'Uploading quiz to database...';
+  messageDiv.className = 'text-blue-600';
+
+  try {
+    const response = await fetch('http://localhost:5000/api/quizzes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(quizData),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Failed to upload quiz.');
+    }
+
+    messageDiv.textContent = 'Quiz uploaded successfully!';
+    messageDiv.className = 'text-green-600';
+
+    uploadBtn.style.display = 'none';
+    quizEditor.style.display = 'none';
+  } catch (error) {
+    messageDiv.textContent = 'Error uploading quiz: ' + error.message;
+    messageDiv.className = 'text-red-600';
+  }
+}
+
+window.generateQuiz = generateQuiz;
+window.uploadQuiz = uploadQuiz;
+
+
+  </script>
+</body>
+</html>

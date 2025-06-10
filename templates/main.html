@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Student Dashboard</title>
+  <style>
+    /* (unchanged, your original CSS) */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+
+    header {
+      background-color: #4a90e2;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.8rem;
+    }
+
+    nav {
+      display: flex;
+      background-color: #f0f0f0;
+      justify-content: center;
+      border-bottom: 1px solid #ddd;
+      user-select: none;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      padding: 1rem 2rem;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: background-color 0.2s ease;
+      font-weight: 600;
+      color: #555;
+    }
+
+    nav button:hover,
+    nav button.active {
+      background-color: #e0e0e0;
+      color: #4a90e2;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 2rem 1rem;
+      max-width: 720px;
+      margin: auto;
+      min-height: 300px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    ul#quizList {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    ul#quizList li {
+      background: white;
+      margin-bottom: 1rem;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.3s ease;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #333;
+    }
+
+    ul#quizList li:hover,
+    ul#quizList li:focus {
+      transform: scale(1.03);
+      box-shadow: 0 5px 15px rgba(74,144,226,0.3);
+      color: #4a90e2;
+      outline: none;
+    }
+
+    #quizContainer {
+      margin-top: 2rem;
+      background: white;
+      padding: 1.5rem 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 7px rgba(0,0,0,0.12);
+      display: none;
+    }
+
+    fieldset {
+      border: none;
+      margin-bottom: 1.5rem;
+    }
+
+    legend {
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+      font-size: 1.1rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.6rem;
+      cursor: pointer;
+      font-size: 1rem;
+      user-select: none;
+      transition: color 0.15s ease;
+    }
+
+    label:hover {
+      color: #4a90e2;
+    }
+
+    input[type="radio"] {
+      margin-right: 0.6rem;
+      cursor: pointer;
+      accent-color: #4a90e2;
+      transform: scale(1.1);
+      vertical-align: middle;
+    }
+
+    button[type="submit"] {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      padding: 0.85rem 2rem;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background-color 0.3s ease;
+      display: block;
+      margin: 2rem auto 0 auto;
+      width: max-content;
+      box-shadow: 0 3px 10px rgba(74,144,226,0.4);
+      user-select: none;
+    }
+
+    button[type="submit"]:hover:not(:disabled) {
+      background-color: #357ABD;
+      box-shadow: 0 6px 15px rgba(53,122,189,0.6);
+    }
+
+    button[type="submit"]:disabled {
+      background-color: #a0a0a0;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    @media (max-width: 768px) {
+      nav button {
+        padding: 1rem;
+        font-size: 1rem;
+      }
+      #quizContainer {
+        padding: 1rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>Student Dashboard</header>
+
+  <nav>
+    <button class="tab-button active" data-tab="contentTab">Content</button>
+    <button class="tab-button" data-tab="examTab">Exams</button>
+    <button class="tab-button" data-tab="quizTab">Quizzes</button>
+  </nav>
+
+  <div id="contentTab" class="tab-content active">
+    <h2>Learning Materials</h2>
+    <p>Coming soon...</p>
+  </div>
+
+  <div id="examTab" class="tab-content">
+    <h2>Upcoming Exams</h2>
+    <p>Coming soon...</p>
+  </div>
+
+  <div id="quizTab" class="tab-content">
+    <h2>Available Quizzes</h2>
+    <ul id="quizList"><li>Loading quizzes...</li></ul>
+    <div id="quizContainer"></div>
+  </div>
+
+  <script>
+const studentRollNo = localStorage.getItem('studentRollNo');
+const studentEmail = localStorage.getItem('studentEmail');
+
+if (!studentRollNo || !studentEmail) {
+  alert('You must be logged in to access the dashboard.');
+  // window.location.href = '/login.html';
+}
+
+document.querySelectorAll('.tab-button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+fetch(`http://localhost:5000/api/quizzes?email=${encodeURIComponent(studentEmail)}`)
+  .then(res => res.json())
+  .then(quizzes => {
+    const list = document.getElementById('quizList');
+    list.innerHTML = '';
+
+    if (!quizzes.length) {
+      list.innerHTML = '<li>No quizzes assigned to you.</li>';
+      return;
+    }
+
+    let added = false;
+    quizzes.forEach(q => {
+      let assigned = q.assignedTo;
+      if (typeof assigned === 'string') assigned = assigned.split(',').map(x => x.trim());
+
+      if (Array.isArray(assigned)) {
+        const matched = assigned.some(prefix => studentRollNo.startsWith(prefix));
+        if (matched) {
+          added = true;
+          const li = document.createElement('li');
+          li.textContent = `${q.topic} (${q.difficulty})`;
+          li.tabIndex = 0;
+          li.onclick = () => loadQuiz(q._id);
+          li.onkeypress = e => { if (e.key === 'Enter') loadQuiz(q._id); };
+          list.appendChild(li);
+        }
+      }
+    });
+
+    if (!added) {
+      list.innerHTML = '<li>No quizzes assigned to you.</li>';
+    }
+  })
+  .catch(() => {
+    document.getElementById('quizList').innerHTML = '<li>Error loading quizzes.</li>';
+  });
+
+  function loadQuiz(quizId) {
+  fetch(`http://localhost:5000/api/quiz/${quizId}`)
+    .then(res => res.json())
+    .then(quiz => {
+      const container = document.getElementById('quizContainer');
+      container.innerHTML = '';
+      container.style.display = 'block';
+
+      const form = document.createElement('form');
+      form.id = 'quizForm';
+      form.dataset.quizId = quiz._id;
+
+      // Create fieldsets for questions (hidden except first)
+      quiz.questions.forEach((q, idx) => {
+        const fieldset = document.createElement('fieldset');
+
+        // Start fieldset content with question text and optional image
+        let questionHTML = `<legend>${q.questionText}</legend>`;
+
+        if (q.image) {
+          questionHTML += `<img src="${q.image}" alt="Question image" style="max-width: 100%; height: auto; margin-top: 10px; display: block;" />`;
+        }
+
+        fieldset.innerHTML = questionHTML;
+
+        // Add options as radio buttons
+        q.options.forEach(opt => {
+          const escapedOpt = opt.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          fieldset.innerHTML += `
+            <label style="display: block; margin-top: 8px;">
+              <input type="radio" name="q${idx}" value="${escapedOpt}" required />
+              ${escapedOpt}
+            </label>`;
+        });
+
+        if (idx !== 0) {
+          fieldset.style.display = 'none';
+        }
+        form.appendChild(fieldset);
+      });
+
+      // Navigation buttons container
+      const navDiv = document.createElement('div');
+      navDiv.style.marginTop = '1em';
+      navDiv.style.display = 'flex';
+      navDiv.style.justifyContent = 'space-between';
+
+      // Prev button
+      const prevBtn = document.createElement('button');
+      prevBtn.type = 'button';
+      prevBtn.textContent = 'Previous';
+      prevBtn.style.padding = '8px 16px';
+      prevBtn.style.border = 'none';
+      prevBtn.style.background = '#007bff';
+      prevBtn.style.color = 'white';
+      prevBtn.style.borderRadius = '5px';
+      prevBtn.style.cursor = 'pointer';
+      prevBtn.style.fontWeight = 'bold';
+      prevBtn.disabled = true; // Initially disabled
+      navDiv.appendChild(prevBtn);
+
+      // Next button
+      const nextBtn = document.createElement('button');
+      nextBtn.type = 'button';
+      nextBtn.textContent = 'Next';
+      nextBtn.style.padding = '8px 16px';
+      nextBtn.style.border = 'none';
+      nextBtn.style.background = '#28a745';
+      nextBtn.style.color = 'white';
+      nextBtn.style.borderRadius = '5px';
+      nextBtn.style.cursor = 'pointer';
+      nextBtn.style.fontWeight = 'bold';
+      navDiv.appendChild(nextBtn);
+
+      form.appendChild(navDiv);
+
+      // Submit button
+      const submitBtn = document.createElement('button');
+      submitBtn.type = 'submit';
+      submitBtn.textContent = 'Submit Quiz';
+      submitBtn.disabled = true;
+      submitBtn.style.marginTop = '1em';
+      submitBtn.style.padding = '10px 20px';
+      submitBtn.style.border = 'none';
+      submitBtn.style.background = '#dc3545';
+      submitBtn.style.color = 'white';
+      submitBtn.style.borderRadius = '5px';
+      submitBtn.style.cursor = 'pointer';
+      submitBtn.style.fontWeight = 'bold';
+      form.appendChild(submitBtn);
+
+      let currentQuestion = 0;
+      const fieldsets = form.querySelectorAll('fieldset');
+
+      function updateNavigationButtons() {
+        prevBtn.disabled = currentQuestion === 0;
+        nextBtn.style.display = currentQuestion === fieldsets.length - 1 ? 'none' : 'inline-block';
+        submitBtn.style.display = currentQuestion === fieldsets.length - 1 ? 'inline-block' : 'none';
+      }
+
+      prevBtn.addEventListener('click', () => {
+        if (currentQuestion > 0) {
+          fieldsets[currentQuestion].style.display = 'none';
+          currentQuestion--;
+          fieldsets[currentQuestion].style.display = 'block';
+          updateNavigationButtons();
+          fieldsets[currentQuestion].scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      nextBtn.addEventListener('click', () => {
+        if (currentQuestion < fieldsets.length - 1) {
+          fieldsets[currentQuestion].style.display = 'none';
+          currentQuestion++;
+          fieldsets[currentQuestion].style.display = 'block';
+          updateNavigationButtons();
+          fieldsets[currentQuestion].scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      updateNavigationButtons();
+
+      form.addEventListener('change', () => {
+        const total = quiz.questions.length;
+        const answered = form.querySelectorAll('input[type="radio"]:checked').length;
+        submitBtn.disabled = answered !== total;
+      });
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+
+        const answers = [];
+        quiz.questions.forEach((q, i) => {
+          const selected = form.querySelector(`input[name="q${i}"]:checked`);
+          const selectedVal = selected ? selected.value.trim() : '';
+          answers.push(selectedVal);
+        });
+
+        let score = 0;
+        quiz.questions.forEach((q, i) => {
+          const correct = (q.answer || '').trim().toLowerCase();
+          const selected = (answers[i] || '').trim().toLowerCase();
+          if (correct === selected) score++;
+        });
+
+        fetch('http://localhost:5000/api/submitScore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            quizId: quiz._id,
+            studentRollNo,
+            score,
+            total: quiz.questions.length
+          })
+        })
+        .then(async res => {
+          if (res.status === 200) {
+            alert(`Quiz submitted! Your score: ${score} / ${quiz.questions.length}`);
+            form.reset();
+            container.style.display = 'none';
+          } else if (res.status === 409) {
+            alert('You have already submitted this quiz.');
+          } else {
+            const data = await res.json();
+            alert(`Error: ${data.message || 'Unknown error'}`);
+          }
+        })
+        .catch(() => {
+          alert('Error submitting quiz.');
+        })
+        .finally(() => {
+          submitBtn.disabled = false;
+        });
+      });
+
+      container.appendChild(form);
+      container.scrollIntoView({ behavior: 'smooth' });
+    })
+    .catch(() => {
+      alert('Failed to load quiz.');
+    });
+}
+
+  </script>
+  
+  
+</body>
+</html>
