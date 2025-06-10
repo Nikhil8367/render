@@ -6,3 +6,4 @@ pymongo
 bcrypt
 requests
 google-generativeai
+guicorn
