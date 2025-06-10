@@ -261,6 +261,7 @@ def verify_otp():
 
 
 @app.route('/generate-quiz', methods=['POST'])
+@cross_origin()
 def generate_quiz():
     try:
         data = request.get_json()
