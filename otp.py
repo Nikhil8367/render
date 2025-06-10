@@ -59,7 +59,7 @@ preexisting_users = [
     }
     {
         'email': 'sunitha@gvpce.ac.in',
-        'password': bcrypt.hashpw('sunitha123'.encode('utf-8'),bcrypt.gensalt()),
+        'password': bcrypt.hashpw('sunitha123'.encode('utf-8'), bcrypt.gensalt()),
         'role': 'teacher'
     }
 ]
