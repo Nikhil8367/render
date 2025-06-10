@@ -72,6 +72,11 @@ for user in preexisting_users:
     else:
         print(f"⚠️ Already exists: {user['email']}")
 
+@app.route("/")
+def home():
+    return "App is running", 200
+
+
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
