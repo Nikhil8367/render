@@ -447,6 +447,42 @@ def delete_quiz(quiz_id):
     except Exception as e:
         return jsonify({'error': 'Error deleting quiz', 'details': str(e)}), 500
 
+@app.route('/get-student-scores-by-quiz', methods=['POST'])
+def get_student_scores_by_quiz():
+    data = request.json
+    teacher_email = data.get("teacherEmail")
+    quiz_id = data.get("quizId")
+    roll_prefix = data.get("studentRollNo", "").strip()
+
+    if not teacher_email or not quiz_id:
+        return jsonify({"error": "Missing data"}), 400
+
+    # Validate teacher owns the quiz
+    quiz = quizzes_collection.find_one({"_id": ObjectId(quiz_id), "createdBy": teacher_email})
+    if not quiz:
+        return jsonify({"error": "Quiz not found or not authorized"}), 404
+
+    # Build query
+    query = {"quizId": ObjectId(quiz_id)}
+    if roll_prefix:
+        query["studentRollNo"] = {"$regex": f"^{roll_prefix}"}
+
+    scores = list(scores_collection.find(query))
+    result = []
+
+    for s in scores:
+        result.append({
+            "topic": quiz.get("topic", "Unknown"),
+            "studentRollNo": s["studentRollNo"],
+            "score": s["score"],
+            "total": s["total"],
+            "submittedAt": s["submittedAt"].isoformat()
+        })
+
+    return jsonify(result)
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
