@@ -441,13 +441,28 @@ from bson.objectid import ObjectId
 @app.route('/api/quiz/<quiz_id>', methods=['DELETE'])
 def delete_quiz(quiz_id):
     try:
-        result = quizzes_collection.delete_one({'_id': ObjectId(quiz_id)})
-        if result.deleted_count:
-            return jsonify({'message': 'Quiz deleted'}), 200
-        else:
+        quiz_obj_id = ObjectId(quiz_id)
+
+        # Step 1: Delete quiz
+        quiz_result = quizzes_collection.delete_one({'_id': quiz_obj_id})
+
+        if quiz_result.deleted_count == 0:
             return jsonify({'error': 'Quiz not found'}), 404
+
+        # Step 2: Delete associated scores
+        scores_result = scores_collection.delete_many({'quizId': quiz_obj_id})
+
+        return jsonify({
+            'message': 'Quiz and associated scores deleted',
+            'quiz_deleted': quiz_result.deleted_count,
+            'scores_deleted': scores_result.deleted_count
+        }), 200
+
     except Exception as e:
-        return jsonify({'error': 'Error deleting quiz', 'details': str(e)}), 500
+        return jsonify({
+            'error': 'Error deleting quiz and scores',
+            'details': str(e)
+        }), 500
 
 @app.route('/get-student-scores-by-quiz', methods=['POST'])
 def get_student_scores_by_quiz():
