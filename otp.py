@@ -48,11 +48,6 @@ except errors.ServerSelectionTimeoutError as err:
 # Users to insert
 preexisting_users = [
     {
-        'email': '323103383052@gvpce.ac.in',
-        'password': bcrypt.hashpw('student123'.encode('utf-8'), bcrypt.gensalt()),
-        'role': 'student'
-    },
-    {
         'email': 'nikhil@gvpce.ac.in',
         'password': bcrypt.hashpw('teacher123'.encode('utf-8'), bcrypt.gensalt()),
         'role': 'teacher'
@@ -63,6 +58,13 @@ preexisting_users = [
         'role': 'teacher'
     }
 ]
+
+for i in range(323103383001, 323103383071):
+    preexisting_users.append({
+        'email': f'{i}@gvpce.ac.in',
+        'password': bcrypt.hashpw('student123'.encode('utf-8'), bcrypt.gensalt()),
+        'role': 'student'
+    })
 
 # Insert users (ignore if already exists)
 for user in preexisting_users:
