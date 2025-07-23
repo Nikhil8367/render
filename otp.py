@@ -1,9 +1,7 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, session
-from flask_cors import CORS, cross_origin
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from flask_cors import CORS
 from pymongo import MongoClient, errors
 import bcrypt
 import requests
@@ -12,6 +10,10 @@ import datetime
 import random
 import time
 import threading
+import time
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+from pprint import pprint
 
 # Load environment variables
 load_dotenv()
@@ -51,11 +53,6 @@ preexisting_users = [
         'email': 'nikhil@gvpce.ac.in',
         'password': bcrypt.hashpw('teacher123'.encode('utf-8'), bcrypt.gensalt()),
         'role': 'teacher'
-    },
-    {
-        'email': 'sunitha@gvpce.ac.in',
-        'password': bcrypt.hashpw('sunitha123'.encode('utf-8'), bcrypt.gensalt()),
-        'role': 'teacher'
     }
 ]
 
@@ -73,11 +70,6 @@ for user in preexisting_users:
         print(f"✅ Inserted: {user['email']} ({user['role']})")
     else:
         print(f"⚠️ Already exists: {user['email']}")
-
-@app.route("/")
-def home():
-    return "App is running", 200
-
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -201,10 +193,11 @@ def register():
 
     return jsonify({'message': 'User registered successfully'}), 201
 
-# In-memory OTP store: {email: (otp, expiry_timestamp)}
+# In-memory OTP store
 otp_store = {}
 OTP_EXPIRY_SECONDS = 300  # 5 minutes
 
+# Start cleanup thread
 def cleanup_otps():
     while True:
         now = time.time()
@@ -215,6 +208,17 @@ def cleanup_otps():
 
 cleanup_thread = threading.Thread(target=cleanup_otps, daemon=True)
 cleanup_thread.start()
+
+# Brevo Configuration
+BREVO_API_KEY = os.getenv('BREVO_API_KEY')
+SENDER_EMAIL = "quizdmn@gmail.com"
+SENDER_NAME = "Quiz Admin"
+
+# Configure API key
+configuration = sib_api_v3_sdk.Configuration()
+configuration.api_key['api-key'] = BREVO_API_KEY
+api_client = sib_api_v3_sdk.ApiClient(configuration)
+smtp_api = sib_api_v3_sdk.TransactionalEmailsApi(api_client)
 
 @app.route('/send-otp', methods=['POST'])
 def send_otp():
@@ -227,25 +231,22 @@ def send_otp():
     expiry = time.time() + OTP_EXPIRY_SECONDS
     otp_store[email] = (otp, expiry)
     print(f"[send-otp] OTP for {email}: {otp}")
+    print(otp)
 
-    # Prepare SendGrid email
-    message = Mail(
-        from_email=SENDER_EMAIL,
-        to_emails=email,
-        subject='Your OTP Code',
-        html_content=f'<strong>Your OTP code is: {otp}</strong>'
+    # Prepare Brevo email
+    email_data = sib_api_v3_sdk.SendSmtpEmail(
+        to=[{"email": email}],
+        sender={"name": SENDER_NAME, "email": SENDER_EMAIL},
+        subject="Your OTP Code",
+        html_content=f"<strong>Your OTP code is: {otp}</strong>"
     )
 
     try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        response = sg.send(message)
-        print(f"SendGrid response status: {response.status_code}")
-        if response.status_code >= 200 and response.status_code < 300:
-            return jsonify({'success': True, 'message': 'OTP sent successfully'}), 200
-        else:
-            return jsonify({'success': False, 'message': 'Failed to send OTP'}), 500
-    except Exception as e:
-        print(f"SendGrid error: {e}")
+        response = smtp_api.send_transac_email(email_data)
+        print(f"Brevo response message ID: {response.message_id}")
+        return jsonify({'success': True, 'message': 'OTP sent successfully'}), 200
+    except ApiException as e:
+        print(f"Brevo error: {e}")
         return jsonify({'success': False, 'message': 'Failed to send OTP'}), 500
 
 @app.route('/verify-otp', methods=['POST'])
@@ -273,7 +274,6 @@ def verify_otp():
 
 
 @app.route('/generate-quiz', methods=['POST'])
-@cross_origin()
 def generate_quiz():
     try:
         data = request.get_json()
@@ -497,7 +497,6 @@ def get_student_scores_by_quiz():
         })
 
     return jsonify(result)
-
 
 
 
