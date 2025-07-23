@@ -1,7 +1,7 @@
 Flask
 python-dotenv
 flask-cors
-sendgrid
+sib_api_v3_sdk
 pymongo
 bcrypt
 requests
