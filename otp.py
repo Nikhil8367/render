@@ -498,6 +498,9 @@ def get_student_scores_by_quiz():
 
     return jsonify(result)
 
+@app.route('/')
+def index():
+    return "✅ Flask Quiz API is running!"
 
 
 if __name__ == '__main__':
